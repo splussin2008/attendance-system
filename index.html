@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>塾 入退室システム</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- html5-qrcode library -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --secondary: #10B981;
+            --danger: #EF4444;
+            --bg-color: #F3F4F6;
+            --card-bg: #FFFFFF;
+            --text-main: #1F2937;
+            --text-sub: #6B7280;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .header {
+            background-color: var(--primary);
+            color: white;
+            width: 100%;
+            padding: 1rem 0;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 500px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 1rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-in {
+            background-color: var(--secondary);
+        }
+
+        .btn-in:hover:not(:disabled) {
+            background-color: #059669;
+        }
+
+        .btn-out {
+            background-color: var(--danger);
+        }
+
+        .btn-out:hover:not(:disabled) {
+            background-color: #DC2626;
+        }
+
+        .btn.active {
+            transform: scale(0.95);
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.1);
+            border: 4px solid var(--primary);
+        }
+
+        #reader-container {
+            width: 100%;
+            margin: 0 auto;
+            border-radius: 8px;
+            overflow: hidden;
+            display: none;
+            border: 2px dashed #D1D5DB;
+        }
+
+        #reader {
+            width: 100%;
+        }
+
+        .status-message {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 8px;
+            font-weight: 500;
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .status-success {
+            background-color: #D1FAE5;
+            color: #065F46;
+            border: 1px solid #34D399;
+        }
+
+        .status-error {
+            background-color: #FEE2E2;
+            color: #991B1B;
+            border: 1px solid #F87171;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            display: none;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .instruction {
+            color: var(--text-sub);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>入退室システム</h1>
+    </div>
+
+    <div class="container">
+        <p class="instruction">1. 「入室」か「退室」を選んでください</p>
+        <div class="action-buttons">
+            <button class="btn btn-in" id="btn-in" onclick="selectAction('in')">入 室</button>
+            <button class="btn btn-out" id="btn-out" onclick="selectAction('out')">退 室</button>
+        </div>
+
+        <p class="instruction" id="scan-instruction" style="display:none;">2. QRコードをカメラにかざしてください</p>
+        <div id="reader-container">
+            <div id="reader"></div>
+        </div>
+
+        <div id="status-message" class="status-message"></div>
+    </div>
+
+    <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 設定: GASのWebアプリURLをここに貼り付けます
+        // ==========================================
+        const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxX3mrJt0xRGQLgk1VD0TsOXd-Vbf2temJZNzlCndTeN4WuNO-SFp10ho05ASHYDZrM/exec';
+
+        // URLから拠点（branch）パラメータを取得
+        const urlParams = new URLSearchParams(window.location.search);
+        const branchName = urlParams.get('branch') || '未設定';
+
+        // 画面に拠点名を表示
+        document.addEventListener('DOMContentLoaded', () => {
+            if (branchName !== '未設定') {
+                const headerTitle = document.querySelector('.header h1');
+                if (headerTitle) {
+                    headerTitle.textContent = `入退室システム - ${branchName}`;
+                }
+            }
+        });
+
+        let currentAction = null;
+        let html5QrCode = null;
+        let isProcessing = false;
+
+        function selectAction(action) {
+            currentAction = action;
+
+            // ボタンのスタイル更新
+            document.getElementById('btn-in').classList.remove('active');
+            document.getElementById('btn-out').classList.remove('active');
+            document.getElementById(`btn-${action}`).classList.add('active');
+
+            // メッセージクリア
+            hideStatus();
+
+            // カメラ起動
+            document.getElementById('scan-instruction').style.display = 'block';
+            document.getElementById('reader-container').style.display = 'block';
+            startScanner();
+        }
+
+        function startScanner() {
+            if (html5QrCode) {
+                // 既に起動していれば何もしない
+                return;
+            }
+
+            html5QrCode = new Html5Qrcode("reader");
+
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+            // 背面カメラを優先的に使用
+            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+                .catch(err => {
+                    console.error("Camera error:", err);
+                    showStatus("カメラの起動に失敗しました。権限を確認してください。", true);
+                });
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            if (isProcessing) return; // 処理中は複数回読み込まない
+
+            // QRコードの内容（生徒ID）を取得
+            const studentId = decodedText.trim();
+            if (!studentId) return;
+
+            // 読み取り成功時の音（オプション）
+            // playSound(); 
+
+            // カメラを一時停止（連続読み取り防止）
+            isProcessing = true;
+            if (html5QrCode) {
+                html5QrCode.pause();
+            }
+
+            // サーバー送信
+            sendDataToGAS(studentId, currentAction);
+        }
+
+        async function sendDataToGAS(studentId, action) {
+            showLoading(true);
+
+            const payload = {
+                type: 'record',
+                studentId: studentId,
+                action: action,
+                branch: branchName
+            };
+
+            try {
+                // GASへのPOSTリクエスト (CORS回避のため mode: 'no-cors' を使用)
+                const response = await fetch(GAS_WEBAPP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // これを追加
+                    headers: {
+                        'Content-Type': 'text/plain', // GASではapplication/jsonだとCORSエラーになりやすい
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                // no-corsモードではレスポンスの中身（statusやok）が読めないため、
+                // エラーがthrowされなければ送信成功とみなす
+                showStatus(`「${action === 'in' ? '入室' : '退室'}」を送信しました。`);
+
+            } catch (error) {
+                console.error("Fetch error:", error);
+                showStatus("通信エラーが発生しました。インターネット接続を確認してください。", true);
+            } finally {
+                showLoading(false);
+
+                // 3秒後にスキャン再開できるようにする
+                setTimeout(() => {
+                    isProcessing = false;
+                    if (html5QrCode) {
+                        html5QrCode.resume();
+                    }
+                    hideStatus();
+                }, 3000);
+            }
+        }
+
+        function showStatus(message, isError = false) {
+            const statusDiv = document.getElementById('status-message');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status-message ' + (isError ? 'status-error' : 'status-success');
+            statusDiv.style.display = 'block';
+        }
+
+        function hideStatus() {
+            document.getElementById('status-message').style.display = 'none';
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'flex' : 'none';
+        }
+    </script>
+</body>
+
+</html>
