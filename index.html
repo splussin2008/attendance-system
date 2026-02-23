@@ -270,13 +270,13 @@
             // disableFlip: false はカメラの左右反転(ミラーリング)を防ぐのに有効です(特にインカメラの場合)
             const config = { fps: 10, qrbox: { width: 250, height: 250 }, disableFlip: false };
 
-            // 背面カメラ(environment)を優先的に使用
-            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+            // 前面カメラ(インカメラ: user)を優先的に使用
+            html5QrCode.start({ facingMode: "user" }, config, onScanSuccess)
                 .catch(err => {
                     console.error("Camera error:", err);
 
-                    // 背面カメラで失敗した場合、前面(user)カメラで再試行するフォールバック
-                    html5QrCode.start({ facingMode: "user" }, config, onScanSuccess)
+                    // 前面カメラで失敗した場合、背面(environment)カメラで再試行するフォールバック
+                    html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
                         .catch(err2 => {
                             showStatus("カメラの起動に失敗しました。権限を確認してください。", true);
                         });
