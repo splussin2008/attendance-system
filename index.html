@@ -100,10 +100,21 @@
             background-color: #DC2626;
         }
 
-        .btn.active {
+        /* どちらかのボタンが選択されているとき、選択されていない方を薄くする */
+        .action-buttons.has-selection .btn:not(.active) {
+            opacity: 0.3;
             transform: scale(0.95);
-            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.1);
-            border: 4px solid var(--primary);
+            box-shadow: none;
+            filter: grayscale(80%);
+        }
+
+        /* 選択されているボタンを強調する */
+        .btn.active {
+            transform: scale(1.05);
+            /* 少し大きくする */
+            box-shadow: 0 0 0 4px white, 0 0 0 8px var(--primary);
+            /* 二重の枠線で目立たせる */
+            z-index: 10;
         }
 
         #reader-container {
@@ -244,6 +255,9 @@
 
         function selectAction(action) {
             currentAction = action;
+
+            // ボタンのコンテナに選択された事を示すクラスを追加
+            document.querySelector('.action-buttons').classList.add('has-selection');
 
             // ボタンのスタイル更新
             document.getElementById('btn-in').classList.remove('active');
