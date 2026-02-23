@@ -222,7 +222,7 @@
         // ==========================================
         // 設定: GASのWebアプリURLをここに貼り付けます
         // ==========================================
-        const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxX3mrJt0xRGQLgk1VD0TsOXd-Vbf2temJZNzlCndTeN4WuNO-SFp10ho05ASHYDZrM/exec';
+        const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbywwj3uG0f6c-HFoU5d0_Iaf1E1YzUbZBEZ_wzUXZn4JVUPKMRWH81-7oCp9vI1n78dng/exec';
 
         // URLから拠点（branch）パラメータを取得
         const urlParams = new URLSearchParams(window.location.search);
@@ -267,13 +267,19 @@
 
             html5QrCode = new Html5Qrcode("reader");
 
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            // disableFlip: false はカメラの左右反転(ミラーリング)を防ぐのに有効です(特にインカメラの場合)
+            const config = { fps: 10, qrbox: { width: 250, height: 250 }, disableFlip: false };
 
-            // 背面カメラを優先的に使用
+            // 背面カメラ(environment)を優先的に使用
             html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
                 .catch(err => {
                     console.error("Camera error:", err);
-                    showStatus("カメラの起動に失敗しました。権限を確認してください。", true);
+
+                    // 背面カメラで失敗した場合、前面(user)カメラで再試行するフォールバック
+                    html5QrCode.start({ facingMode: "user" }, config, onScanSuccess)
+                        .catch(err2 => {
+                            showStatus("カメラの起動に失敗しました。権限を確認してください。", true);
+                        });
                 });
         }
 
